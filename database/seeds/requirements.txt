@@ -1,0 +1,5 @@
+faker
+numpy
+pymongo
+psycopg2-binary
+python-dateutil

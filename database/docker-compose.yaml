@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for relational data and ML features
+  postgres:
+    image: postgres:16-alpine
+    container_name: news_app_postgres
+    environment:
+      POSTGRES_DB: news_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgresql/schemas:/docker-entrypoint-initdb.d
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: no
+    networks:
+      - news_app_network
+
+  # MongoDB 8.0 for document storage and flexible schemas
+  mongodb:
+    image: mongo:8.0
+    container_name: news_app_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: news_app
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - ./backups:/backups
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: no
+    networks:
+      - news_app_network
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: news_app_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: no
+    networks:
+      - news_app_network
+    command: ["redis-server", "--requirepass", "redis_password", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  news_app_network:
+    driver: bridge
