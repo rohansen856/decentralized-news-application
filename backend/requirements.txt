@@ -1,0 +1,42 @@
+# Common dependencies for both Flask and FastAPI backends
+# Database drivers
+psycopg2-binary
+pymongo
+redis
+
+# Web frameworks
+flask
+fastapi
+uvicorn
+
+# Request validation and serialization
+pydantic
+pydantic[email]
+marshmallow
+
+# CORS and middleware
+flask-cors
+python-multipart
+
+# Authentication and security
+PyJWT
+bcrypt
+python-jose[cryptography]
+
+# Environment and configuration
+python-dotenv
+
+# HTTP client for service communication
+httpx
+requests
+
+# Background tasks and caching
+celery
+redis-py-cluster
+
+# Monitoring and logging
+prometheus-client
+
+# Development and testing
+pytest
+pytest-asyncio
