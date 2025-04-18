@@ -89,7 +89,7 @@ def create_app():
     # Request/Response middleware
     @app.before_request
     def before_request():
-        request.start_time = datetime.utcnow()
+        request.start_time = datetime.now()
         
         # Log request
         logger.info(f"{request.method} {request.path} - {request.remote_addr}")
@@ -98,7 +98,7 @@ def create_app():
     def after_request(response):
         # Calculate request duration
         if hasattr(request, 'start_time'):
-            duration = (datetime.utcnow() - request.start_time).total_seconds() * 1000
+            duration = (datetime.now() - request.start_time).total_seconds() * 1000
             response.headers['X-Response-Time'] = f"{duration:.2f}ms"
         
         # Add security headers

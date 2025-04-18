@@ -43,8 +43,8 @@ def get_user_analytics(user_id):
             metrics = {}
             
             # Date range
-            date_from = analytics_data.date_from or (datetime.utcnow() - timedelta(days=30))
-            date_to = analytics_data.date_to or datetime.utcnow()
+            date_from = analytics_data.date_from or (datetime.now() - timedelta(days=30))
+            date_to = analytics_data.date_to or datetime.now()
             
             if 'views' in analytics_data.metrics:
                 cursor.execute("""
@@ -109,8 +109,8 @@ def get_article_analytics(article_id):
             
             # Basic analytics available to everyone, detailed to author only
             metrics = {}
-            date_from = analytics_data.date_from or (datetime.utcnow() - timedelta(days=30))
-            date_to = analytics_data.date_to or datetime.utcnow()
+            date_from = analytics_data.date_from or (datetime.now() - timedelta(days=30))
+            date_to = analytics_data.date_to or datetime.now()
             
             # Basic metrics
             cursor.execute("""

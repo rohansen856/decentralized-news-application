@@ -129,7 +129,7 @@ def calculate_trending_score(views: int, likes: int, shares: int, comments: int,
                            published_at: datetime, current_time: datetime = None) -> float:
     """Calculate trending score based on recent activity and recency"""
     if current_time is None:
-        current_time = datetime.utcnow()
+        current_time = datetime.now()
     
     # Time decay factor (more recent = higher score)
     hours_since_published = (current_time - published_at).total_seconds() / 3600
@@ -172,7 +172,7 @@ def validate_email(email: str) -> bool:
 def generate_session_id(user_id: str, timestamp: datetime = None) -> str:
     """Generate unique session ID"""
     if timestamp is None:
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now()
     
     session_data = f"{user_id}:{timestamp.isoformat()}:{uuid.uuid4()}"
     return hashlib.sha256(session_data.encode()).hexdigest()
@@ -275,11 +275,11 @@ class TimingContext:
         self.duration = None
     
     def __enter__(self):
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now()
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.end_time = datetime.utcnow()
+        self.end_time = datetime.now()
         self.duration = (self.end_time - self.start_time).total_seconds() * 1000  # milliseconds
     
     def get_duration_ms(self) -> float:

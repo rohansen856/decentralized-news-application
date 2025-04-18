@@ -58,7 +58,7 @@ def get_recommendations():
                 FROM recommendation_cache 
                 WHERE user_id = %s AND is_active = true AND expiry_timestamp > %s
                 ORDER BY cache_timestamp DESC LIMIT 1
-            """, (user_id, datetime.utcnow()))
+            """, (user_id, datetime.now()))
             
             cached_rec = cursor.fetchone()
             
@@ -120,8 +120,8 @@ def get_recommendations():
             response = RecommendationResponse(
                 recommendations=article_responses,
                 model_used="trending_fallback",
-                generated_at=datetime.utcnow(),
-                expires_at=datetime.utcnow() + timedelta(hours=1)
+                generated_at=datetime.now(),
+                expires_at=datetime.now() + timedelta(hours=1)
             )
             
             # Cache in Redis

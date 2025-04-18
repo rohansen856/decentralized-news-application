@@ -36,8 +36,8 @@ class AuthManager:
             'username': user_data['username'],
             'email': user_data['email'],
             'role': user_data['role'],
-            'exp': datetime.utcnow() + timedelta(seconds=self.access_token_expires),
-            'iat': datetime.utcnow(),
+            'exp': datetime.now() + timedelta(seconds=self.access_token_expires),
+            'iat': datetime.now(),
             'jti': str(uuid.uuid4())  # JWT ID for token revocation
         }
         return jwt.encode(payload, self.jwt_secret, algorithm=self.jwt_algorithm)

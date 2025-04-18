@@ -72,9 +72,9 @@ def create_app() -> FastAPI:
     # Custom middleware
     @app.middleware("http")
     async def add_process_time_header(request: Request, call_next):
-        start_time = datetime.utcnow()
+        start_time = datetime.now()
         response = await call_next(request)
-        process_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+        process_time = (datetime.now() - start_time).total_seconds() * 1000
         response.headers["X-Process-Time"] = f"{process_time:.2f}ms"
         return response
     
@@ -106,7 +106,7 @@ def create_app() -> FastAPI:
             content=ErrorResponse(
                 message=exc.detail,
                 error_code=f"HTTP_{exc.status_code}"
-            ).dict()
+            ).model_dump()
         )
     
     @app.exception_handler(Exception)

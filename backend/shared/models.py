@@ -46,7 +46,7 @@ class RecommendationModel(str, Enum):
 class BaseResponse(BaseModel):
     success: bool = True
     message: str = "Operation completed successfully"
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=datetime.now)
     
     class Config:
         json_encoders = {
@@ -257,6 +257,6 @@ class PaginatedResponse(BaseResponse):
 # Health check model
 class HealthResponse(BaseModel):
     status: str = "healthy"
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=datetime.now)
     services: Dict[str, str] = Field(default_factory=dict)
     version: str = "1.0.0"
