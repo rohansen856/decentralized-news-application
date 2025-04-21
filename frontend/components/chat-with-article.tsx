@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { X, Send, Bot, User, Loader2 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { chatAPI } from '@/lib/api';
+import {useChat} from "@ai-sdk/react"
 
 interface Message {
   id: string;
@@ -19,21 +20,16 @@ interface Message {
 
 export function ChatWithArticle() {
   const { chatOpen, currentArticle, toggleChat } = useStore();
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { messages, sendMessage } = useChat();
 
   useEffect(() => {
     if (chatOpen && currentArticle) {
-      // Initialize chat with article context
-      const welcomeMessage: Message = {
-        id: '1',
-        role: 'assistant',
-        content: `Hi! I'm here to help you discuss "${currentArticle.title}". What would you like to know about this article?`,
-        timestamp: new Date(),
-      };
-      setMessages([welcomeMessage]);
+      const welcomeMessage = `this is the article: "${currentArticle.title}". answer any follow up question about this article and do not answer anuthing out of this context. if you understood just say exactly: ask anything about the article!`
+
+      sendMessage({text: welcomeMessage, metadata: { role: 'system' } });
     }
   }, [chatOpen, currentArticle]);
 
@@ -43,55 +39,6 @@ export function ChatWithArticle() {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
-
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || !currentArticle || isLoading) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputValue,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
-
-    try {
-      const response = await chatAPI.sendMessage(
-        currentArticle.id,
-        inputValue,
-        messages.map(m => ({ role: m.role, content: m.content }))
-      );
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response.message,
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'Sorry, I encountered an error while processing your message. Please try again.',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
 
   if (!chatOpen || !currentArticle) return null;
 
@@ -113,9 +60,9 @@ export function ChatWithArticle() {
       </CardHeader>
 
       <CardContent className="flex-1 p-0 flex flex-col">
-        <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <ScrollArea className="flex-1 p-4 max-h-[75vh]" ref={scrollAreaRef}>
           <div className="space-y-4">
-            {messages.map((message) => (
+            {messages.map((message) => message.id != "system_prompt" && (
               <div
                 key={message.id}
                 className={`flex items-start space-x-3 ${
@@ -138,14 +85,21 @@ export function ChatWithArticle() {
                       : 'bg-muted mr-12'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                  <p
+                  <p className="whitespace-pre-wrap">
+                  {message.parts.map((part, i) => {
+                      switch (part.type) {
+                        case 'text':
+                          return <span key={`${message.id}-${i}`}>{part.text}</span>;
+                      }
+                    })}
+                  </p>
+                  {/* <p
                     className={`text-xs mt-1 opacity-70 ${
                       message.role === 'user' ? 'text-primary-foreground' : 'text-muted-foreground'
                     }`}
                   >
                     {message.timestamp.toLocaleTimeString()}
-                  </p>
+                  </p> */}
                 </div>
               </div>
             ))}
@@ -169,23 +123,35 @@ export function ChatWithArticle() {
         </ScrollArea>
 
         <div className="border-t p-4">
-          <div className="flex space-x-2">
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              sendMessage({ text: inputValue, metadata: { role: 'user' } });
+              setInputValue('');
+            }}
+            className="flex space-x-2"
+          >
+            {/* <input
+              className="fixed dark:bg-zinc-900 bottom-0 w-full max-w-md p-2 mb-8 border border-zinc-300 dark:border-zinc-800 rounded shadow-xl"
+              value={input}
+              placeholder="Say something..."
+              onChange={e => setInput(e.currentTarget.value)}
+            /> */}
             <Input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
               placeholder="Ask about this article..."
               disabled={isLoading}
               className="flex-1"
             />
             <Button
-              onClick={handleSendMessage}
+              type='submit'
               disabled={!inputValue.trim() || isLoading}
               size="icon"
             >
               <Send className="w-4 h-4" />
             </Button>
-          </div>
+          </form>
         </div>
       </CardContent>
     </div>
