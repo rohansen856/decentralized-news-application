@@ -144,85 +144,45 @@ def create_app() -> FastAPI:
         except ImportError:
             logger.error("Failed to import auth router")
     
-    # Fixed Exception handlers
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        """Handle HTTP exceptions with proper ErrorResponse creation"""
-        try:
-            error_response = ErrorResponse(
-                message=str(exc.detail),
-                error_code=f"HTTP_{exc.status_code}",
-                timestamp=datetime.now()  # Pass datetime object, not callable
-            )
-            
-            return JSONResponse(
-                status_code=exc.status_code,
-                content=error_response.model_dump()
-            )
-        except Exception as e:
-            logger.error(f"Error in http_exception_handler: {e}")
-            # Fallback response if ErrorResponse creation fails
-            return JSONResponse(
-                status_code=exc.status_code,
-                content={
-                    "message": str(exc.detail),
-                    "error_code": f"HTTP_{exc.status_code}",
-                    "timestamp": datetime.now().isoformat()
-                }
-            )
+        """Handle HTTP exceptions - bypass ErrorResponse model"""
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "success": False,
+                "message": str(exc.detail),
+                "error_code": f"HTTP_{exc.status_code}",
+                "timestamp": datetime.now().isoformat()
+            }
+        )
     
     @app.exception_handler(HTTPException)
     async def fastapi_http_exception_handler(request: Request, exc: HTTPException):
-        """Handle FastAPI HTTP exceptions"""
-        try:
-            error_response = ErrorResponse(
-                message=str(exc.detail),
-                error_code=f"HTTP_{exc.status_code}",
-                timestamp=datetime.now()
-            )
-            
-            return JSONResponse(
-                status_code=exc.status_code,
-                content=error_response.model_dump()
-            )
-        except Exception as e:
-            logger.error(f"Error in fastapi_http_exception_handler: {e}")
-            return JSONResponse(
-                status_code=exc.status_code,
-                content={
-                    "message": str(exc.detail),
-                    "error_code": f"HTTP_{exc.status_code}",
-                    "timestamp": datetime.now().isoformat()
-                }
-            )
+        """Handle FastAPI HTTP exceptions - bypass ErrorResponse model"""
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "success": False,
+                "message": str(exc.detail),
+                "error_code": f"HTTP_{exc.status_code}",
+                "timestamp": datetime.now().isoformat()
+            }
+        )
     
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        """Handle general exceptions with proper error response"""
+        """Handle general exceptions - bypass ErrorResponse model"""
         logger.error(f"Unexpected error: {exc}", exc_info=True)
-        
-        try:
-            error_response = ErrorResponse(
-                message="Internal server error",
-                error_code="INTERNAL_ERROR",
-                timestamp=datetime.now()
-            )
-            
-            return JSONResponse(
-                status_code=500,
-                content=error_response.model_dump()  # Use model_dump() instead of dict()
-            )
-        except Exception as e:
-            logger.error(f"Error in general_exception_handler: {e}")
-            # Ultimate fallback
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "message": "Internal server error",
-                    "error_code": "INTERNAL_ERROR",
-                    "timestamp": datetime.now().isoformat()
-                }
-            )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": "Internal server error",
+                "error_code": "INTERNAL_ERROR",
+                "timestamp": datetime.now().isoformat()
+            }
+        )
     
     # Root endpoint
     @app.get("/")

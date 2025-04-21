@@ -31,7 +31,9 @@ export function Navbar() {
     auditor: [{ href: '/auditor', label: 'Audit', icon: Eye }],
   };
 
-  const userNavItems = user?.role && roleBasedItems[user.role] ? roleBasedItems[user.role] : [];
+  const userNavItems = user?.role && (user.role as keyof typeof roleBasedItems) in roleBasedItems 
+    ? roleBasedItems[user.role as keyof typeof roleBasedItems] 
+    : [];
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -107,9 +109,9 @@ export function Navbar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={user.avatar} alt={user.username} />
                     <AvatarFallback>
-                      {user.name.charAt(0).toUpperCase()}
+                      {user.username.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -117,7 +119,7 @@ export function Navbar() {
               <DropdownMenuContent align="end" className="w-56">
                 <div className="flex items-center justify-start gap-2 p-2">
                   <div className="flex flex-col space-y-1 leading-none">
-                    <p className="font-medium">{user.name}</p>
+                    <p className="font-medium">{user.username}</p>
                     <p className="w-[200px] truncate text-sm text-muted-foreground">
                       {user.email}
                     </p>

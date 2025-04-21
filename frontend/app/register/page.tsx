@@ -41,7 +41,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { setUser, setToken } = useStore();
   const [formData, setFormData] = useState({
-    name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -72,7 +72,7 @@ export default function RegisterPage() {
   };
 
   const validateForm = () => {
-    if (!formData.name.trim()) {
+    if (!formData.username.trim()) {
       setError('Name is required');
       return false;
     }
@@ -111,7 +111,7 @@ export default function RegisterPage() {
       const response = await authAPI.register(
         formData.email,
         formData.password,
-        formData.name,
+        formData.username,
         formData.role
       );
       
@@ -163,13 +163,13 @@ export default function RegisterPage() {
               {/* Basic Information */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">Username</Label>
                   <Input
-                    id="name"
-                    name="name"
+                    id="username"
+                    name="username"
                     type="text"
                     placeholder="Enter your full name"
-                    value={formData.name}
+                    value={formData.username}
                     onChange={handleInputChange}
                     required
                     disabled={loading}

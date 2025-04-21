@@ -68,7 +68,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
 
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
+    name: user?.username || '',
     email: user?.email || '',
     bio: '',
     avatar: user?.avatar || '',

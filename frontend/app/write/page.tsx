@@ -390,7 +390,7 @@ export default function WritePage() {
                   {formData.excerpt || 'Article excerpt will appear here...'}
                 </CardDescription>
                 <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                  <span>By {formData.publishAnonymously ? 'Anonymous' : user?.name}</span>
+                  <span>By {formData.publishAnonymously ? 'Anonymous' : user?.username}</span>
                   <span>•</span>
                   <span>{wordCount} words</span>
                   <span>•</span>
