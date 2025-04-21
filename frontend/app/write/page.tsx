@@ -125,15 +125,15 @@ export default function WritePage() {
         author_anonymous: formData.publishAnonymously
       };
 
-      // TODO: Replace with actual API call
-      // await articlesAPI.create(articleData);
+      const data = await articlesAPI.create(articleData);
+      console.log(data)
       
       setSuccess(publish ? 'Article published successfully!' : 'Draft saved successfully!');
       
       if (publish) {
-        setTimeout(() => {
-          router.push('/articles');
-        }, 2000);
+        // setTimeout(() => {
+        //   router.push('/articles');
+        // }, 2000);
       }
     } catch (error: any) {
       setError(error.response?.data?.message || 'Failed to save article. Please try again.');

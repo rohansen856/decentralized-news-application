@@ -7,6 +7,7 @@ import os
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, status, Query
 import logging
+from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
@@ -20,6 +21,33 @@ from ..dependencies import get_current_user, get_optional_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+def prepare_array_for_postgres(data):
+    """
+    Prepare array data for PostgreSQL insertion
+    Handles both array columns (text[]) and JSON columns (jsonb)
+    """
+    if data is None:
+        return []
+    elif isinstance(data, list):
+        # For PostgreSQL array columns, return the list as-is
+        return data
+    else:
+        # Convert to list if it's not already
+        return [str(data)]
+
+
+def prepare_json_for_postgres(data):
+    """
+    Prepare JSON data for PostgreSQL insertion
+    """
+    from psycopg2.extras import Json
+    if data is None:
+        return Json({})
+    elif isinstance(data, (dict, list)):
+        return Json(data)
+    else:
+        return Json({"value": str(data)})
 
 
 @router.get("/", response_model=PaginatedResponse)
@@ -92,8 +120,9 @@ async def get_article(article_id: str):
 
 @router.post("/", response_model=ArticleResponse, status_code=status.HTTP_201_CREATED)
 async def create_article(article_data: ArticleCreate, current_user: dict = Depends(get_current_user)):
-    """Create new article"""
+    """Create new article with proper array/JSON handling"""
     try:
+        # Process article content
         sanitized_content = sanitize_html(article_data.content)
         reading_time = calculate_reading_time(sanitized_content)
         word_count = calculate_word_count(sanitized_content)
@@ -102,6 +131,10 @@ async def create_article(article_data: ArticleCreate, current_user: dict = Depen
         
         article_id = generate_uuid()
         author_id = current_user['id']
+        
+        tags_data = prepare_array_for_postgres(article_data.tags)  # For array columns
+        metadata_data = prepare_json_for_postgres(article_data.metadata)  # For JSON columns
+        seo_keywords_data = prepare_array_for_postgres(seo_keywords)  # For array columns
         
         with get_postgres_cursor() as cursor:
             cursor.execute("""
@@ -112,16 +145,36 @@ async def create_article(article_data: ArticleCreate, current_user: dict = Depen
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING *
             """, (
-                article_id, article_data.title, sanitized_content, article_data.summary,
-                author_id, article_data.anonymous_author, article_data.category,
-                article_data.subcategory, article_data.tags, article_data.language,
-                reading_time, word_count, 'draft', article_data.metadata or {},
-                seo_keywords, quality_score, 'now()', 'now()'
+                article_id, 
+                article_data.title, 
+                sanitized_content, 
+                article_data.summary,
+                author_id, 
+                article_data.anonymous_author, 
+                article_data.category,
+                article_data.subcategory, 
+                tags_data,  # Prepared for array column
+                article_data.language,
+                reading_time, 
+                word_count, 
+                'draft', 
+                metadata_data,  # Prepared for JSON column
+                seo_keywords_data,  # Prepared for array column
+                quality_score, 
+                datetime.now(),
+                datetime.now()
             ))
             
             article_record = cursor.fetchone()
+            
+            if not article_record:
+                raise HTTPException(status_code=500, detail="Failed to create article")
         
+        logger.info(f"Article created successfully: {article_id} by user {author_id}")
         return ArticleResponse(**dict(article_record))
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Create article error: {e}")
+        logger.error(f"Create article error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to create article")

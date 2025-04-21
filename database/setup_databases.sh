@@ -98,7 +98,6 @@ generate_demo_data() {
 seed_postgresql() {
     echo -e "${YELLOW}Seeding PostgreSQL with demo data...${NC}"
     
-    source "$SCRIPT_DIR/seeds/venv/bin/activate"
     cd "$SCRIPT_DIR/postgresql/seeds"
     
     export POSTGRES_HOST POSTGRES_PORT POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD
@@ -111,7 +110,6 @@ seed_postgresql() {
 seed_mongodb() {
     echo -e "${YELLOW}Seeding MongoDB with demo data...${NC}"
     
-    source "$SCRIPT_DIR/seeds/venv/bin/activate"
     cd "$SCRIPT_DIR/mongodb/seeds"
     
     export MONGO_HOST MONGO_PORT MONGO_DB MONGO_USER MONGO_PASSWORD
