@@ -42,7 +42,7 @@ export default function LoginPage() {
       
       // Set user and token in store
       setUser(response.user);
-      setToken(response.token);
+      setToken(response.access_token);
       
       // Redirect to dashboard or home page
       router.push('/');
@@ -60,6 +60,7 @@ export default function LoginPage() {
         id: '1',
         email: 'reader@demo.com',
         name: 'Demo Reader',
+        username: 'reader_demo',
         role: 'reader' as const,
         avatar: '',
       },
@@ -67,6 +68,7 @@ export default function LoginPage() {
         id: '2',
         email: 'author@demo.com',
         name: 'Demo Author',
+        username: 'author_demo',
         role: 'author' as const,
         avatar: '',
       },
@@ -74,6 +76,7 @@ export default function LoginPage() {
         id: '3',
         email: 'admin@demo.com',
         name: 'Demo Admin',
+        username: 'admin_demo',
         role: 'administrator' as const,
         avatar: '',
       },
@@ -81,6 +84,7 @@ export default function LoginPage() {
         id: '4',
         email: 'auditor@demo.com',
         name: 'Demo Auditor',
+        username: 'auditor_demo',
         role: 'auditor' as const,
         avatar: '',
       }

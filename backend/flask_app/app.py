@@ -14,10 +14,7 @@ from dotenv import load_dotenv
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from shared.database import db_manager
-from shared.auth import auth_manager
 from shared.models import *
-from shared.utils import TimingContext, health_check_service
 
 # Load environment variables
 load_dotenv()

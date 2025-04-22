@@ -17,7 +17,7 @@ class AuthManager:
     def __init__(self):
         self.jwt_secret = os.getenv('JWT_SECRET_KEY', 'your-super-secret-jwt-key')
         self.jwt_algorithm = 'HS256'
-        self.access_token_expires = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 3600))
+        self.access_token_expires = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 60 * 60 * 24 * 365))
         self.bcrypt_rounds = int(os.getenv('BCRYPT_ROUNDS', 12))
     
     def hash_password(self, password: str) -> str:

@@ -7,6 +7,7 @@ from pydantic import ValidationError
 import logging
 import sys
 import os
+import json
 
 # Add parent directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
@@ -64,7 +65,7 @@ def register():
             """, (
                 user_id, user_data.username, user_data.email, hashed_password,
                 user_data.role.value, user_data.anonymous_mode,
-                user_data.profile_data or {}, user_data.preferences or {},
+                json.dumps(user_data.profile_data or {}), json.dumps(user_data.preferences or {}),
                 'now()', 'now()', 'now()'
             ))
             

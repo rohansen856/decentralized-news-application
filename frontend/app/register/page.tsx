@@ -117,7 +117,7 @@ export default function RegisterPage() {
       
       // Set user and token in store
       setUser(response.user);
-      setToken(response.token);
+      setToken(response.access_token);
       
       // Redirect to onboarding or home page
       router.push('/');
