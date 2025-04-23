@@ -149,17 +149,34 @@ export const analyticsAPI = {
 // Interactions API (FastAPI)
 export const interactionsAPI = {
   like: async (articleId: string) => {
-    const response = await fastAPI.post(`/api/v1/articles/${articleId}/like`);
+    const response = await fastAPI.post(`/api/v1/interactions/${articleId}/like`);
     return response.data;
   },
   
   bookmark: async (articleId: string) => {
-    const response = await fastAPI.post(`/api/v1/articles/${articleId}/bookmark`);
+    const response = await fastAPI.post(`/api/v1/interactions/${articleId}/bookmark`);
     return response.data;
   },
   
   share: async (articleId: string, platform: string) => {
-    const response = await fastAPI.post(`/api/v1/articles/${articleId}/share`, { platform });
+    const response = await fastAPI.post(`/api/v1/interactions/${articleId}/share`, { platform });
+    return response.data;
+  },
+  
+  getStatus: async (articleId: string) => {
+    const response = await fastAPI.get(`/api/v1/interactions/${articleId}/status`);
+    return response.data;
+  },
+  
+  recordView: async (articleId: string, timeSpent: number = 0, readingProgress: number = 0) => {
+    const response = await fastAPI.post('/api/v1/interactions', {
+      article_id: articleId,
+      interaction_type: 'view',
+      interaction_strength: Math.min(readingProgress, 1.0),
+      reading_progress: readingProgress,
+      time_spent: timeSpent,
+      device_type: typeof window !== 'undefined' ? (window.innerWidth < 768 ? 'mobile' : 'desktop') : 'unknown'
+    });
     return response.data;
   }
 };

@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Heart, Bookmark, Share2, Clock, User, Eye, BarChart } from 'lucide-react';
-import { Article } from '@/lib/store';
+import { Article, useStore } from '@/lib/store';
+import { interactionsAPI } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -15,21 +17,105 @@ interface ArticleCardProps {
 }
 
 export function ArticleCard({ article, variant = 'default', className }: ArticleCardProps) {
+  const { user } = useStore();
   const timeAgo = formatDistanceToNow(new Date(article.published_at), { addSuffix: true });
+  
+  const [liked, setLiked] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [stats, setStats] = useState({
+    likes: article.likes || 0,
+    views: article.view_count || 0,
+    shares: article.share_count || 0,
+    comments: article.comment_count || 0
+  });
+  const [loading, setLoading] = useState(false);
 
-  const handleLike = (e: React.MouseEvent) => {
-    e.preventDefault();
-    // TODO: Implement like functionality
+  useEffect(() => {
+    if (user && article.id) {
+      loadInteractionStatus();
+    }
+  }, [user, article.id]);
+
+  const loadInteractionStatus = async () => {
+    try {
+      const response = await interactionsAPI.getStatus(article.id);
+      if (response.success) {
+        setLiked(response.liked);
+        setBookmarked(response.bookmarked);
+        setStats(response.stats);
+      }
+    } catch (error) {
+      console.error('Failed to load interaction status:', error);
+    }
   };
 
-  const handleBookmark = (e: React.MouseEvent) => {
+  const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
-    // TODO: Implement bookmark functionality
+    if (!user || loading) return;
+    
+    setLoading(true);
+    try {
+      const response = await interactionsAPI.like(article.id);
+      if (response.success) {
+        setLiked(response.liked);
+        setStats(prev => ({
+          ...prev,
+          likes: response.liked ? prev.likes + 1 : prev.likes - 1
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to like article:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleShare = (e: React.MouseEvent) => {
+  const handleBookmark = async (e: React.MouseEvent) => {
     e.preventDefault();
-    // TODO: Implement share functionality
+    if (!user || loading) return;
+    
+    setLoading(true);
+    try {
+      const response = await interactionsAPI.bookmark(article.id);
+      if (response.success) {
+        setBookmarked(response.bookmarked);
+      }
+    } catch (error) {
+      console.error('Failed to bookmark article:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user || loading) return;
+    
+    setLoading(true);
+    try {
+      // Use Web Share API if available, otherwise copy to clipboard
+      if (navigator.share) {
+        await navigator.share({
+          title: article.title,
+          text: article.excerpt,
+          url: window.location.origin + `/articles/${article.id}`
+        });
+        await interactionsAPI.share(article.id, 'native');
+      } else {
+        // Fallback to copying URL to clipboard
+        await navigator.clipboard.writeText(window.location.origin + `/articles/${article.id}`);
+        await interactionsAPI.share(article.id, 'clipboard');
+      }
+      
+      setStats(prev => ({
+        ...prev,
+        shares: prev.shares + 1
+      }));
+    } catch (error) {
+      console.error('Failed to share article:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -98,10 +184,10 @@ export function ArticleCard({ article, variant = 'default', className }: Article
               </div>
             )}
             
-            {article.view_count && (
+            {stats.views > 0 && (
               <div className="flex items-center gap-1">
                 <Eye size={14} />
-                <span>{article.view_count} views</span>
+                <span>{stats.views} views</span>
               </div>
             )}
 
@@ -132,21 +218,23 @@ export function ArticleCard({ article, variant = 'default', className }: Article
             <Button 
               variant="ghost" 
               size="sm" 
-              className={cn("gap-1", article.bookmarked && "text-primary")}
+              className={cn("gap-1", bookmarked && "text-primary")}
               onClick={handleBookmark}
+              disabled={loading || !user}
             >
-              <Bookmark size={16} className={article.bookmarked ? "fill-current" : ""} />
+              <Bookmark size={16} className={bookmarked ? "fill-current" : ""} />
               <span className="sr-only">Bookmark</span>
             </Button>
             
             <Button 
               variant="ghost" 
               size="sm" 
-              className="gap-1"
+              className={cn("gap-1", liked && "text-red-500")}
               onClick={handleLike}
+              disabled={loading || !user}
             >
-              <Heart size={16} />
-              <span>{article.likes || 0}</span>
+              <Heart size={16} className={liked ? "fill-current" : ""} />
+              <span>{stats.likes}</span>
             </Button>
             
             <Button 
@@ -154,9 +242,10 @@ export function ArticleCard({ article, variant = 'default', className }: Article
               size="sm" 
               className="gap-1"
               onClick={handleShare}
+              disabled={loading || !user}
             >
               <Share2 size={16} />
-              <span>{article.share_count || 0}</span>
+              <span>{stats.shares}</span>
             </Button>
           </div>
         </CardContent>

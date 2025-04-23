@@ -26,12 +26,19 @@ import Image from 'next/image';
 
 export default function ArticlePage() {
   const params = useParams();
-  const { toggleChat } = useStore();
+  const { toggleChat, user } = useStore();
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
+  const [stats, setStats] = useState({
+    likes: 0,
+    views: 0,
+    shares: 0,
+    comments: 0
+  });
+  const [interactionLoading, setInteractionLoading] = useState(false);
+  const [viewTracked, setViewTracked] = useState(false);
 
   useEffect(() => {
     const loadArticle = async () => {
@@ -43,11 +50,26 @@ export default function ArticlePage() {
         
         if (articleData) {
           setArticle(articleData);
-          setLiked(false); // You might want to check if user liked it from API later
-          setBookmarked(articleData.bookmarked || false);
-          setLikesCount(articleData.likes || 0);
+          setStats({
+            likes: articleData.likes || 0,
+            views: articleData.view_count || 0,
+            shares: articleData.share_count || 0,
+            comments: articleData.comment_count || 0
+          });
+          
+          // Load interaction status if user is logged in
+          if (user) {
+            await loadInteractionStatus(params.id as string);
+          }
+          
+          // Track view after a short delay if user is authenticated
+          if (user && !viewTracked) {
+            setTimeout(() => {
+              trackView(params.id as string);
+              setViewTracked(true);
+            }, 3000);
+          }
         } else {
-          // Handle case when article is not found
           setArticle(null);
         }
       } catch (error) {
@@ -61,43 +83,90 @@ export default function ArticlePage() {
     if (params.id) {
       loadArticle();
     }
-  }, [params.id]);
+  }, [params.id, user, viewTracked]);
+
+  const loadInteractionStatus = async (articleId: string) => {
+    try {
+      const response = await interactionsAPI.getStatus(articleId);
+      if (response.success) {
+        setLiked(response.liked);
+        setBookmarked(response.bookmarked);
+        setStats(response.stats);
+      }
+    } catch (error) {
+      console.error('Failed to load interaction status:', error);
+    }
+  };
+
+  const trackView = async (articleId: string) => {
+    try {
+      await interactionsAPI.recordView(articleId, 0, 0);
+      setStats(prev => ({ ...prev, views: prev.views + 1 }));
+    } catch (error) {
+      console.error('Failed to track view:', error);
+    }
+  };
 
   const handleLike = async () => {
-    if (!article) return;
+    if (!article || !user || interactionLoading) return;
     
+    setInteractionLoading(true);
     try {
-      // await interactionsAPI.like(article.id);
-      setLiked(!liked);
-      setLikesCount(prev => liked ? prev - 1 : prev + 1);
+      const response = await interactionsAPI.like(article.id);
+      if (response.success) {
+        setLiked(response.liked);
+        setStats(prev => ({
+          ...prev,
+          likes: response.liked ? prev.likes + 1 : prev.likes - 1
+        }));
+      }
     } catch (error) {
       console.error('Error liking article:', error);
+    } finally {
+      setInteractionLoading(false);
     }
   };
 
   const handleBookmark = async () => {
-    if (!article) return;
+    if (!article || !user || interactionLoading) return;
     
+    setInteractionLoading(true);
     try {
-      // await interactionsAPI.bookmark(article.id);
-      setBookmarked(!bookmarked);
+      const response = await interactionsAPI.bookmark(article.id);
+      if (response.success) {
+        setBookmarked(response.bookmarked);
+      }
     } catch (error) {
       console.error('Error bookmarking article:', error);
+    } finally {
+      setInteractionLoading(false);
     }
   };
 
   const handleShare = async () => {
-    if (!article) return;
+    if (!article || !user || interactionLoading) return;
     
+    setInteractionLoading(true);
     try {
-      await navigator.share({
-        title: article.title,
-        text: article.excerpt,
-        url: window.location.href,
-      });
+      // Use Web Share API if available, otherwise copy to clipboard
+      if (navigator.share) {
+        await navigator.share({
+          title: article.title,
+          text: article.excerpt,
+          url: window.location.href,
+        });
+        await interactionsAPI.share(article.id, 'native');
+      } else {
+        // Fallback to copying URL to clipboard
+        await navigator.clipboard.writeText(window.location.href);
+        await interactionsAPI.share(article.id, 'clipboard');
+      }
+      
+      setStats(prev => ({ ...prev, shares: prev.shares + 1 }));
     } catch (error) {
-      // Fallback to copying to clipboard
-      await navigator.clipboard.writeText(window.location.href);
+      console.error('Error sharing article:', error);
+    } finally {
+      setInteractionLoading(false);
     }
   };
 
@@ -183,7 +252,7 @@ export default function ArticlePage() {
                 <span>{timeAgo}</span>
                 <span>•</span>
                 <Eye className="w-4 h-4" />
-                <span>2.3k views</span>
+                <span>{stats.views} views</span>
               </div>
             </div>
           </div>
@@ -194,19 +263,26 @@ export default function ArticlePage() {
               variant={liked ? "default" : "outline"}
               size="sm"
               onClick={handleLike}
+              disabled={interactionLoading || !user}
               className="flex items-center space-x-2"
             >
               <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
-              <span>{likesCount}</span>
+              <span>{stats.likes}</span>
             </Button>
             <Button
               variant={bookmarked ? "default" : "outline"}
               size="sm"
               onClick={handleBookmark}
+              disabled={interactionLoading || !user}
             >
               <Bookmark className={`w-4 h-4 ${bookmarked ? 'fill-current' : ''}`} />
             </Button>
-            <Button variant="outline" size="sm" onClick={handleShare}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleShare}
+              disabled={interactionLoading || !user}
+            >
               <Share2 className="w-4 h-4" />
             </Button>
             <Button variant="default" size="sm" onClick={handleChatWithArticle}>
@@ -251,10 +327,11 @@ export default function ArticlePage() {
                 <Button
                   variant={liked ? "default" : "outline"}
                   onClick={handleLike}
+                  disabled={interactionLoading || !user}
                   className="flex items-center space-x-2"
                 >
                   <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} />
-                  <span>{likesCount} Likes</span>
+                  <span>{stats.likes} Likes</span>
                 </Button>
                 <Button variant="outline" onClick={handleChatWithArticle}>
                   <MessageCircle className="w-5 h-5 mr-2" />
@@ -266,11 +343,17 @@ export default function ArticlePage() {
                   variant={bookmarked ? "default" : "outline"}
                   size="sm"
                   onClick={handleBookmark}
+                  disabled={interactionLoading || !user}
                 >
                   <Bookmark className={`w-4 h-4 ${bookmarked ? 'fill-current' : ''}`} />
                   {bookmarked ? 'Saved' : 'Save'}
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleShare}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleShare}
+                  disabled={interactionLoading || !user}
+                >
                   <Share2 className="w-4 h-4 mr-2" />
                   Share
                 </Button>
