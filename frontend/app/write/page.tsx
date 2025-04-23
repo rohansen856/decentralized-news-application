@@ -120,13 +120,18 @@ export default function WritePage() {
 
     try {
       const articleData = {
-        ...formData,
-        isDraft: !publish,
-        author_anonymous: formData.publishAnonymously
+        title: formData.title,
+        content: formData.content,
+        summary: formData.excerpt,
+        category: formData.tags[0] || 'general', // Use first tag as category or default to 'general'
+        tags: formData.tags,
+        anonymous_author: formData.publishAnonymously,
+        language: 'en',
+        status: publish ? 'published' : 'draft'
       };
 
       const data = await articlesAPI.create(articleData);
-      console.log(data)
+      router.push(`/articles/${data.id}`);
       
       setSuccess(publish ? 'Article published successfully!' : 'Draft saved successfully!');
       
