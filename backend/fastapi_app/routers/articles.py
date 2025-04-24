@@ -118,6 +118,53 @@ async def get_article(article_id: str):
         raise HTTPException(status_code=500, detail="Failed to retrieve article")
 
 
+@router.get("/{article_id}/related", response_model=List[ArticleResponse])
+async def get_related_articles(article_id: str):
+    """Get articles related to the given article by tags and category"""
+    try:
+        with get_postgres_cursor() as cursor:
+            # First get the current article's tags and category
+            cursor.execute("SELECT tags, category FROM articles WHERE id = %s", (article_id,))
+            current_article = cursor.fetchone()
+            
+            if not current_article:
+                raise HTTPException(status_code=404, detail="Article not found")
+            
+            current_tags = current_article['tags'] or []
+            current_category = current_article['category']
+            
+            # Find related articles by matching tags or category
+            cursor.execute("""
+                SELECT *, 
+                CASE 
+                    WHEN category = %s THEN 3
+                    ELSE 0
+                END +
+                CASE 
+                    WHEN tags && %s THEN array_length(tags & %s, 1) * 2
+                    ELSE 0
+                END as relevance_score
+                FROM articles 
+                WHERE id != %s 
+                AND status = 'published'
+                AND (category = %s OR tags && %s)
+                ORDER BY relevance_score DESC, created_at DESC
+                LIMIT 6
+            """, (
+                current_category, current_tags, current_tags, article_id, 
+                current_category, current_tags
+            ))
+            
+            related_articles = cursor.fetchall()
+            return [ArticleResponse(**dict(article)) for article in related_articles]
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get related articles error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve related articles")
+
+
 @router.post("/", response_model=ArticleResponse, status_code=status.HTTP_201_CREATED)
 async def create_article(article_data: ArticleCreate, current_user: dict = Depends(get_current_user)):
     """Create new article with proper array/JSON handling"""

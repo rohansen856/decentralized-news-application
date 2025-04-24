@@ -167,6 +167,120 @@ async def update_user(
         )
 
 
+@router.get("/{user_id}/articles", response_model=PaginatedResponse)
+async def get_user_articles(
+    user_id: str,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    status_filter: str = Query("published"),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get articles by user"""
+    try:
+        # Users can view their own articles, others can only see published articles
+        if user_id != current_user.get('id'):
+            status_filter = "published"  # Force published for other users
+        
+        with get_postgres_cursor() as cursor:
+            query = "SELECT * FROM articles WHERE author_id = %s AND status = %s ORDER BY created_at DESC"
+            cursor.execute(query, (user_id, status_filter))
+            articles = cursor.fetchall()
+        
+        from shared.models import ArticleResponse
+        article_responses = [ArticleResponse(**dict(article)) for article in articles]
+        paginated = paginate_query_results([a.dict() for a in article_responses], page, per_page)
+        
+        return PaginatedResponse(**paginated)
+    
+    except Exception as e:
+        logger.error(f"Get user articles error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve user articles"
+        )
+
+
+@router.get("/{user_id}/bookmarks", response_model=PaginatedResponse)
+async def get_user_bookmarks(
+    user_id: str,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get bookmarked articles by user"""
+    try:
+        # Users can only view their own bookmarks
+        if user_id != current_user.get('id'):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied"
+            )
+        
+        with get_postgres_cursor() as cursor:
+            query = """
+                SELECT a.* FROM articles a
+                JOIN saved_articles sa ON a.id = sa.article_id
+                WHERE sa.user_id = %s AND a.status = 'published'
+                ORDER BY sa.created_at DESC
+            """
+            cursor.execute(query, (user_id,))
+            articles = cursor.fetchall()
+        
+        from shared.models import ArticleResponse
+        article_responses = [ArticleResponse(**dict(article)) for article in articles]
+        paginated = paginate_query_results([a.dict() for a in article_responses], page, per_page)
+        
+        return PaginatedResponse(**paginated)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get user bookmarks error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve user bookmarks"
+        )
+
+
+@router.get("/{user_id}/stats")
+async def get_user_stats(user_id: str, current_user: dict = Depends(get_current_user)):
+    """Get user statistics"""
+    try:
+        # Users can view their own stats, others get limited public stats
+        with get_postgres_cursor() as cursor:
+            # Get article count and total likes/views
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as articles_published,
+                    COALESCE(SUM(like_count), 0) as total_likes,
+                    COALESCE(SUM(view_count), 0) as total_views
+                FROM articles 
+                WHERE author_id = %s AND status = 'published'
+            """, (user_id,))
+            
+            article_stats = cursor.fetchone()
+            
+            # Get follower count (placeholder - not implemented in schema)
+            followers = 0
+            
+            return {
+                "success": True,
+                "stats": {
+                    "articlesPublished": article_stats['articles_published'] or 0,
+                    "totalLikes": article_stats['total_likes'] or 0,
+                    "totalViews": article_stats['total_views'] or 0,
+                    "followers": followers
+                }
+            }
+    
+    except Exception as e:
+        logger.error(f"Get user stats error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve user statistics"
+        )
+
+
 @router.delete("/{user_id}")
 async def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
     """Delete user (soft delete)"""

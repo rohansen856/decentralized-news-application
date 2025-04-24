@@ -195,7 +195,7 @@ class InteractionResponse(InteractionCreate):
 
 # Recommendation models
 class RecommendationRequest(BaseModel):
-    user_id: uuid.UUID
+    user_id: Optional[uuid.UUID] = None
     limit: int = Field(default=20, ge=1, le=100)
     categories: Optional[List[str]] = None
     exclude_read: bool = True

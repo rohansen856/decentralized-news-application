@@ -114,3 +114,133 @@ async def get_recommendations(req_data: RecommendationRequest, current_user: dic
     except Exception as e:
         logger.error(f"Get recommendations error: {e}")
         raise HTTPException(status_code=500, detail="Failed to get recommendations")
+
+
+@router.get("/trending-topics")
+async def get_trending_topics():
+    """Get trending topics and tags"""
+    try:
+        with get_postgres_cursor() as cursor:
+            # Get trending tags from recent articles
+            cursor.execute("""
+                SELECT 
+                    tag, 
+                    COUNT(*) as count,
+                    ROUND((COUNT(*) * 100.0 / LAG(COUNT(*)) OVER (ORDER BY COUNT(*) DESC) - 100), 1) as trend_percent
+                FROM (
+                    SELECT unnest(tags) as tag
+                    FROM articles 
+                    WHERE status = 'published' 
+                    AND created_at >= %s
+                ) tag_counts
+                GROUP BY tag
+                HAVING COUNT(*) >= 3
+                ORDER BY count DESC
+                LIMIT 10
+            """, (datetime.now() - timedelta(days=7),))
+            
+            trending_topics = cursor.fetchall()
+            
+            # Format the response
+            topics_list = []
+            for topic in trending_topics:
+                trend_percent = topic.get('trend_percent', 0) or 0
+                topics_list.append({
+                    "name": topic['tag'],
+                    "count": topic['count'],
+                    "trend": f"+{abs(trend_percent):.0f}%" if trend_percent >= 0 else f"{trend_percent:.0f}%"
+                })
+            
+            return {"success": True, "topics": topics_list}
+    
+    except Exception as e:
+        logger.error(f"Get trending topics error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get trending topics")
+
+
+@router.get("/reading-history")
+async def get_reading_history(current_user: dict = Depends(get_current_user)):
+    """Get user's reading history"""
+    try:
+        user_id = current_user['id']
+        
+        with get_postgres_cursor() as cursor:
+            cursor.execute("""
+                SELECT a.*, MAX(ui.created_at) as last_interaction
+                FROM articles a
+                JOIN user_interactions ui ON a.id = ui.article_id
+                WHERE ui.user_id = %s 
+                AND ui.interaction_type IN ('view', 'like', 'save')
+                AND a.status = 'published'
+                GROUP BY a.id
+                ORDER BY last_interaction DESC
+                LIMIT 20
+            """, (user_id,))
+            
+            articles = cursor.fetchall()
+            article_responses = [ArticleResponse(**dict(article)) for article in articles]
+            
+            return {"success": True, "articles": article_responses}
+    
+    except Exception as e:
+        logger.error(f"Get reading history error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get reading history")
+
+
+@router.get("/user-stats")
+async def get_user_recommendation_stats(current_user: dict = Depends(get_current_user)):
+    """Get user reading statistics for recommendations"""
+    try:
+        user_id = current_user['id']
+        
+        with get_postgres_cursor() as cursor:
+            # Get articles read count
+            cursor.execute("""
+                SELECT COUNT(DISTINCT article_id) as articles_read
+                FROM user_interactions 
+                WHERE user_id = %s AND interaction_type = 'view'
+            """, (user_id,))
+            articles_read = cursor.fetchone()['articles_read'] or 0
+            
+            # Get reading streak (consecutive days with reading activity)
+            cursor.execute("""
+                SELECT COUNT(*) as reading_streak
+                FROM (
+                    SELECT DISTINCT DATE(created_at) as reading_date
+                    FROM user_interactions 
+                    WHERE user_id = %s AND interaction_type = 'view'
+                    AND created_at >= %s
+                    ORDER BY reading_date DESC
+                ) daily_reading
+            """, (user_id, datetime.now() - timedelta(days=30)))
+            reading_streak = cursor.fetchone()['reading_streak'] or 0
+            
+            # Get favorite topic (most interacted with tag)
+            cursor.execute("""
+                SELECT tag, COUNT(*) as interaction_count
+                FROM (
+                    SELECT unnest(a.tags) as tag
+                    FROM articles a
+                    JOIN user_interactions ui ON a.id = ui.article_id
+                    WHERE ui.user_id = %s 
+                    AND ui.interaction_type IN ('view', 'like', 'save')
+                ) user_tags
+                GROUP BY tag
+                ORDER BY interaction_count DESC
+                LIMIT 1
+            """, (user_id,))
+            favorite_topic_result = cursor.fetchone()
+            favorite_topic = favorite_topic_result['tag'] if favorite_topic_result else 'General'
+            
+            return {
+                "success": True,
+                "stats": {
+                    "articlesRead": articles_read,
+                    "readingStreak": f"{reading_streak} days",
+                    "favoriteTopic": favorite_topic
+                }
+            }
+    
+    except Exception as e:
+        logger.error(f"Get user recommendation stats error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get user stats")
