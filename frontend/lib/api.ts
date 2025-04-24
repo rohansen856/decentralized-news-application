@@ -66,6 +66,24 @@ export const authAPI = {
   }
 };
 
+// Users API (FastAPI)
+export const usersAPI = {
+  getUserArticles: async (userId: string, params?: any) => {
+    const response = await fastAPI.get(`/api/v1/users/${userId}/articles`, { params });
+    return response.data;
+  },
+  
+  getUserBookmarks: async (userId: string, params?: any) => {
+    const response = await fastAPI.get(`/api/v1/users/${userId}/bookmarks`, { params });
+    return response.data;
+  },
+  
+  getUserStats: async (userId: string) => {
+    const response = await fastAPI.get(`/api/v1/users/${userId}/stats`);
+    return response.data;
+  }
+};
+
 // Articles API (FastAPI)
 export const articlesAPI = {
   getAll: async (params?: any): Promise<Article[]> => {
@@ -81,6 +99,11 @@ export const articlesAPI = {
     const response = await fastAPI.get(`/api/v1/articles/${id}`);
     const {data} = response
     return data;
+  },
+  
+  getRelated: async (id: string): Promise<Article[]> => {
+    const response = await fastAPI.get(`/api/v1/articles/${id}/related`);
+    return response.data;
   },
   
   create: async (article: any) => {
@@ -105,13 +128,46 @@ export const articlesAPI = {
     return response.data;
   },
   
-  getRecommendations: async () => {
-    const response = await fastAPI.get('/api/v1/recommendations');
+  getRecommendations: async (params?: any) => {
+    const response = await fastAPI.post('/api/v1/recommendations', {
+      limit: 10,
+      categories: [],
+      exclude_read: true,
+      ...params
+    });
     return response.data;
   },
   
   getTrending: async () => {
     const response = await fastAPI.get('/api/v1/trending');
+    return response.data;
+  }
+};
+
+// Recommendations API (FastAPI)
+export const recommendationsAPI = {
+  getPersonalized: async (params?: any) => {
+    const response = await fastAPI.post('/api/v1/recommendations', {
+      limit: 10,
+      categories: [],
+      exclude_read: true,
+      ...params
+    });
+    return response.data;
+  },
+  
+  getTrendingTopics: async () => {
+    const response = await fastAPI.get('/api/v1/recommendations/trending-topics');
+    return response.data;
+  },
+  
+  getReadingHistory: async () => {
+    const response = await fastAPI.get('/api/v1/recommendations/reading-history');
+    return response.data;
+  },
+  
+  getUserStats: async () => {
+    const response = await fastAPI.get('/api/v1/recommendations/user-stats');
     return response.data;
   }
 };
@@ -128,20 +184,30 @@ export const chatAPI = {
   }
 };
 
-// Analytics API (Flask)
+// Analytics API (FastAPI)
 export const analyticsAPI = {
   getUserStats: async () => {
-    const response = await flaskAPI.get('/api/v1/analytics/user');
+    const response = await fastAPI.get('/api/v1/analytics/user');
     return response.data;
   },
   
   getArticleStats: async (articleId: string) => {
-    const response = await flaskAPI.get(`/api/v1/analytics/article/${articleId}`);
+    const response = await fastAPI.get(`/api/v1/analytics/article/${articleId}`);
     return response.data;
   },
   
   getAdminStats: async () => {
-    const response = await flaskAPI.get('/api/v1/analytics/admin');
+    const response = await fastAPI.get('/api/v1/analytics/admin/stats');
+    return response.data;
+  },
+  
+  getRecentUsers: async () => {
+    const response = await fastAPI.get('/api/v1/analytics/admin/recent-users');
+    return response.data;
+  },
+  
+  getFlaggedContent: async () => {
+    const response = await fastAPI.get('/api/v1/analytics/admin/flagged-content');
     return response.data;
   }
 };

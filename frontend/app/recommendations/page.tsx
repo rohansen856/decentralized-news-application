@@ -6,103 +6,71 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArticleCard } from '@/components/article-card';
-import { Sparkles, TrendingUp, Clock, User, Settings } from 'lucide-react';
+import { Sparkles, TrendingUp, Clock, User, Settings, Loader2 } from 'lucide-react';
 import { Article, useStore } from '@/lib/store';
-import { articlesAPI } from '@/lib/api';
+import { articlesAPI, recommendationsAPI } from '@/lib/api';
 import Link from 'next/link';
 
-// Mock recommendation data
-const mockRecommendedArticles: Article[] = [
-  {
-    id: '1',
-    title: 'Understanding Zero-Knowledge Proofs in Journalism',
-    content: 'Full content...',
-    excerpt: 'A deep dive into how zero-knowledge proofs can revolutionize source protection and fact verification.',
-    author: 'Dr. Alice Wang',
-    author_anonymous: false,
-    tags: ['cryptography', 'journalism', 'privacy'],
-    published_at: '2025-01-08T07:00:00Z',
-    likes: 92,
-    image_url: 'https://images.pexels.com/photos/5380664/pexels-photo-5380664.jpeg'
-  },
-  {
-    id: '2',
-    title: 'The Rise of Citizen Journalism in the Digital Age',
-    content: 'Full content...',
-    excerpt: 'How everyday people are becoming the new voice of news reporting through social media and digital platforms.',
-    author: 'Anonymous',
-    author_anonymous: true,
-    tags: ['citizen journalism', 'digital media', 'social media'],
-    published_at: '2025-01-08T06:00:00Z',
-    likes: 156,
-    image_url: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg'
-  },
-  {
-    id: '3',
-    title: 'Blockchain Verification: The Future of Fact-Checking',
-    content: 'Full content...',
-    excerpt: 'Exploring how blockchain technology can create immutable records for fact-checking and source verification.',
-    author: 'Tech Reporter',
-    author_anonymous: false,
-    tags: ['blockchain', 'fact-checking', 'verification'],
-    published_at: '2025-01-08T05:00:00Z',
-    likes: 203,
-    image_url: 'https://images.pexels.com/photos/3184338/pexels-photo-3184338.jpeg'
-  }
-];
-
-const mockTrendingTopics = [
-  { name: 'Blockchain Journalism', count: 45, trend: '+12%' },
-  { name: 'AI in Media', count: 38, trend: '+8%' },
-  { name: 'Privacy Protection', count: 32, trend: '+15%' },
-  { name: 'Decentralized Publishing', count: 28, trend: '+20%' },
-  { name: 'Fact Verification', count: 24, trend: '+5%' }
-];
-
-const mockReadingHistory: Article[] = [
-  {
-    id: '4',
-    title: 'The Economics of Anonymous Publishing',
-    content: 'Full content...',
-    excerpt: 'Anonymous publishing is creating new economic models for content creators.',
-    author: 'Anonymous',
-    author_anonymous: true,
-    tags: ['economics', 'publishing', 'privacy'],
-    published_at: '2025-01-07T15:00:00Z',
-    likes: 89,
-    image_url: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg'
-  }
-];
 
 export default function RecommendationsPage() {
   const { user } = useStore();
   const [activeTab, setActiveTab] = useState('for-you');
   const [recommendedArticles, setRecommendedArticles] = useState<Article[]>([]);
-  const [trendingTopics, setTrendingTopics] = useState(mockTrendingTopics);
+  const [trendingArticles, setTrendingArticles] = useState<Article[]>([]);
+  const [trendingTopics, setTrendingTopics] = useState<any[]>([]);
   const [readingHistory, setReadingHistory] = useState<Article[]>([]);
+  const [userStats, setUserStats] = useState({
+    articlesRead: 0,
+    readingStreak: '0 days',
+    favoriteTopic: 'General'
+  });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const loadRecommendations = async () => {
-      try {
-        // For now, use mock data
-        setRecommendedArticles(mockRecommendedArticles);
-        setReadingHistory(mockReadingHistory);
-        
-        // TODO: Replace with actual API calls
-        // if (user) {
-        //   const recommendations = await articlesAPI.getRecommendations();
-        //   setRecommendedArticles(recommendations);
-        // }
-      } catch (error) {
-        console.error('Error loading recommendations:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadRecommendations();
+    if (user) {
+      loadRecommendations();
+    }
   }, [user]);
+
+  const loadRecommendations = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      // Load all recommendation data in parallel
+      const [
+        personalizedRecs,
+        trendingArticlesData,
+        trendingTopicsData,
+        readingHistoryData,
+        userStatsData
+      ] = await Promise.all([
+        recommendationsAPI.getPersonalized({ limit: 6 }),
+        articlesAPI.getAll({ sort_by: 'trending_score', sort_order: 'desc', per_page: 6 }),
+        recommendationsAPI.getTrendingTopics(),
+        recommendationsAPI.getReadingHistory(),
+        recommendationsAPI.getUserStats()
+      ]);
+
+      setRecommendedArticles(personalizedRecs.recommendations || []);
+      setTrendingArticles(trendingArticlesData || []);
+      setTrendingTopics(trendingTopicsData.topics || []);
+      setReadingHistory(readingHistoryData.articles || []);
+      setUserStats(userStatsData.stats || {
+        articlesRead: 0,
+        readingStreak: '0 days',
+        favoriteTopic: 'General'
+      });
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+      setError('Failed to load recommendations');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -169,11 +137,34 @@ export default function RecommendationsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {recommendedArticles.map((article) => (
-                      <ArticleCard key={article.id} article={article} />
-                    ))}
-                  </div>
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+                      <p className="text-muted-foreground">Loading personalized recommendations...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="text-center py-8">
+                      <p className="text-red-500 mb-4">{error}</p>
+                      <Button onClick={loadRecommendations}>Try Again</Button>
+                    </div>
+                  ) : recommendedArticles.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {recommendedArticles.map((article) => (
+                        <ArticleCard key={article.id} article={article} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Sparkles className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No recommendations yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Start reading articles to get personalized recommendations
+                      </p>
+                      <Button asChild>
+                        <Link href="/articles">Browse Articles</Link>
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -190,11 +181,24 @@ export default function RecommendationsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {recommendedArticles.slice(0, 4).map((article) => (
-                      <ArticleCard key={article.id} article={article} />
-                    ))}
-                  </div>
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+                      <p className="text-muted-foreground">Loading trending articles...</p>
+                    </div>
+                  ) : trendingArticles.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {trendingArticles.map((article) => (
+                        <ArticleCard key={article.id} article={article} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <TrendingUp className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No trending articles</h3>
+                      <p className="text-muted-foreground">Check back later for trending content</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -288,15 +292,15 @@ export default function RecommendationsPage() {
             <CardContent className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Articles Read</span>
-                <span className="text-sm font-medium">24</span>
+                <span className="text-sm font-medium">{userStats.articlesRead}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Reading Streak</span>
-                <span className="text-sm font-medium">7 days</span>
+                <span className="text-sm font-medium">{userStats.readingStreak}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Favorite Topic</span>
-                <Badge variant="secondary" className="text-xs">Blockchain</Badge>
+                <Badge variant="secondary" className="text-xs">{userStats.favoriteTopic}</Badge>
               </div>
             </CardContent>
           </Card>

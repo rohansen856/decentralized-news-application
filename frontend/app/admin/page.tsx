@@ -15,51 +15,61 @@ import {
   Eye,
   Ban,
   CheckCircle,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react';
 import { analyticsAPI } from '@/lib/api';
 
-// Mock admin data
-const mockStats = {
-  totalUsers: 1247,
-  totalArticles: 3456,
-  pendingReviews: 23,
-  flaggedContent: 8,
-  activeUsers: 892,
-  newUsersToday: 45
-};
-
-const mockRecentUsers = [
-  { id: '1', name: 'John Doe', email: 'john@example.com', role: 'reader', joinDate: '2025-01-08', status: 'active' },
-  { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'author', joinDate: '2025-01-07', status: 'active' },
-  { id: '3', name: 'Anonymous User', email: 'anon@example.com', role: 'author', joinDate: '2025-01-06', status: 'pending' }
-];
-
-const mockFlaggedContent = [
-  { id: '1', title: 'Controversial Article Title', author: 'User123', reason: 'Inappropriate content', date: '2025-01-08' },
-  { id: '2', title: 'Another Flagged Article', author: 'Anonymous', reason: 'Spam', date: '2025-01-07' }
-];
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [stats, setStats] = useState(mockStats);
-  const [recentUsers, setRecentUsers] = useState(mockRecentUsers);
-  const [flaggedContent, setFlaggedContent] = useState(mockFlaggedContent);
-  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalArticles: 0,
+    pendingReviews: 0,
+    flaggedContent: 0,
+    activeUsers: 0,
+    newUsersToday: 0,
+    articlesThisWeek: 0
+  });
+  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+  const [flaggedContent, setFlaggedContent] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const loadAdminData = async () => {
-      try {
-        // TODO: Replace with actual API calls
-        // const adminStats = await analyticsAPI.getAdminStats();
-        // setStats(adminStats);
-      } catch (error) {
-        console.error('Error loading admin data:', error);
-      }
-    };
-
     loadAdminData();
   }, []);
+
+  const loadAdminData = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const [adminStatsResponse, recentUsersResponse, flaggedContentResponse] = await Promise.all([
+        analyticsAPI.getAdminStats(),
+        analyticsAPI.getRecentUsers(),
+        analyticsAPI.getFlaggedContent()
+      ]);
+
+      setStats(adminStatsResponse.stats || {
+        totalUsers: 0,
+        totalArticles: 0,
+        pendingReviews: 0,
+        flaggedContent: 0,
+        activeUsers: 0,
+        newUsersToday: 0,
+        articlesThisWeek: 0
+      });
+      setRecentUsers(recentUsersResponse.users || []);
+      setFlaggedContent(flaggedContentResponse.content || []);
+    } catch (error) {
+      console.error('Error loading admin data:', error);
+      setError('Failed to load admin data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleUserAction = (userId: string, action: 'approve' | 'ban' | 'delete') => {
     // TODO: Implement user management actions
@@ -90,8 +100,24 @@ export default function AdminPage() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {loading && (
+              <div className="text-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground">Loading admin dashboard...</p>
+              </div>
+            )}
+            
+            {error && (
+              <div className="text-center py-8">
+                <p className="text-red-500 mb-4">{error}</p>
+                <Button onClick={loadAdminData}>Try Again</Button>
+              </div>
+            )}
+
+            {!loading && !error && (
+              <>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -205,7 +231,75 @@ export default function AdminPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Users</CardTitle>
+                      <CardDescription>Latest user registrations</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {recentUsers.length > 0 ? recentUsers.map((user) => (
+                          <div key={user.id} className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{user.name}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                            </div>
+                            <div className="text-right">
+                              <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
+                                {user.status}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground mt-1">{user.joinDate}</p>
+                            </div>
+                          </div>
+                        )) : (
+                          <p className="text-center py-4 text-muted-foreground">No recent users</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Flagged Content</CardTitle>
+                      <CardDescription>Content requiring review</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {flaggedContent.length > 0 ? flaggedContent.map((content) => (
+                          <div key={content.id} className="space-y-2">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <p className="font-medium line-clamp-1">{content.title}</p>
+                                <p className="text-sm text-muted-foreground">by {content.author}</p>
+                              </div>
+                              <Badge variant="destructive" className="text-xs">
+                                {content.reason}
+                              </Badge>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button size="sm" variant="outline" onClick={() => handleContentAction(content.id, 'approve')}>
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Approve
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleContentAction(content.id, 'remove')}>
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        )) : (
+                          <p className="text-center py-4 text-muted-foreground">No flagged content</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
@@ -307,8 +401,8 @@ export default function AdminPage() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Articles Published (7d)</p>
-                    <p className="text-2xl font-bold">156</p>
-                    <p className="text-xs text-green-600">+8% from last week</p>
+                    <p className="text-2xl font-bold">{stats.articlesThisWeek}</p>
+                    <p className="text-xs text-green-600">This week</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">User Engagement</p>

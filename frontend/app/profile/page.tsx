@@ -26,38 +26,8 @@ import {
   Camera
 } from 'lucide-react';
 import { useStore, Article } from '@/lib/store';
-import { authAPI, articlesAPI } from '@/lib/api';
+import { authAPI, usersAPI } from '@/lib/api';
 
-// Mock user articles
-const mockUserArticles: Article[] = [
-  {
-    id: '1',
-    title: 'The Future of Decentralized Journalism',
-    content: 'Full content...',
-    excerpt: 'Exploring how blockchain technology is transforming journalism...',
-    author: 'Demo Author',
-    author_anonymous: false,
-    tags: ['blockchain', 'journalism'],
-    published_at: '2025-01-08T10:00:00Z',
-    likes: 127,
-    image_url: 'https://images.pexels.com/photos/518543/pexels-photo-518543.jpeg'
-  }
-];
-
-const mockBookmarkedArticles: Article[] = [
-  {
-    id: '2',
-    title: 'AI-Powered News Curation',
-    content: 'Full content...',
-    excerpt: 'How AI is reshaping news discovery...',
-    author: 'Anonymous',
-    author_anonymous: true,
-    tags: ['AI', 'media'],
-    published_at: '2025-01-08T08:00:00Z',
-    likes: 89,
-    image_url: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg'
-  }
-];
 
 export default function ProfilePage() {
   const { user, setUser } = useStore();
@@ -85,18 +55,41 @@ export default function ProfilePage() {
     totalViews: 0,
     followers: 0
   });
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    // Load user data and articles
-    setUserArticles(mockUserArticles);
-    setBookmarkedArticles(mockBookmarkedArticles);
-    setStats({
-      articlesPublished: 12,
-      totalLikes: 1250,
-      totalViews: 15600,
-      followers: 89
-    });
-  }, []);
+    if (user?.id) {
+      loadUserData();
+    }
+  }, [user?.id]);
+
+  const loadUserData = async () => {
+    if (!user?.id) return;
+    
+    setDataLoading(true);
+    try {
+      // Load user articles, bookmarks, and stats in parallel
+      const [articlesResponse, bookmarksResponse, statsResponse] = await Promise.all([
+        usersAPI.getUserArticles(user.id, { page: 1, per_page: 10 }),
+        usersAPI.getUserBookmarks(user.id, { page: 1, per_page: 10 }),
+        usersAPI.getUserStats(user.id)
+      ]);
+
+      setUserArticles(articlesResponse.data || []);
+      setBookmarkedArticles(bookmarksResponse.data || []);
+      setStats(statsResponse.stats || {
+        articlesPublished: 0,
+        totalLikes: 0,
+        totalViews: 0,
+        followers: 0
+      });
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      setError('Failed to load user data');
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setProfileData(prev => ({
@@ -119,9 +112,8 @@ export default function ProfilePage() {
     setSuccess('');
 
     try {
-      // TODO: Replace with actual API call
-      // const updatedUser = await authAPI.updateProfile(profileData);
-      // setUser(updatedUser);
+      const updatedUser = await authAPI.updateProfile(profileData);
+      setUser(updatedUser);
       
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
@@ -351,7 +343,12 @@ export default function ProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {userArticles.length > 0 ? (
+              {dataLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading your articles...</p>
+                </div>
+              ) : userArticles.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {userArticles.map((article) => (
                     <ArticleCard key={article.id} article={article} />
@@ -380,7 +377,12 @@ export default function ProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {bookmarkedArticles.length > 0 ? (
+              {dataLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading your bookmarks...</p>
+                </div>
+              ) : bookmarkedArticles.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {bookmarkedArticles.map((article) => (
                     <ArticleCard key={article.id} article={article} />

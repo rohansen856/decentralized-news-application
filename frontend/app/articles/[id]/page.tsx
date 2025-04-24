@@ -23,6 +23,7 @@ import { articlesAPI, interactionsAPI } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ArticleCard } from '@/components/article-card';
 
 export default function ArticlePage() {
   const params = useParams();
@@ -39,6 +40,8 @@ export default function ArticlePage() {
   });
   const [interactionLoading, setInteractionLoading] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
+  const [relatedArticles, setRelatedArticles] = useState<Article[]>([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
 
   useEffect(() => {
     const loadArticle = async () => {
@@ -69,6 +72,9 @@ export default function ArticlePage() {
               setViewTracked(true);
             }, 3000);
           }
+          
+          // Load related articles
+          loadRelatedArticles(params.id as string);
         } else {
           setArticle(null);
         }
@@ -84,6 +90,18 @@ export default function ArticlePage() {
       loadArticle();
     }
   }, [params.id, user, viewTracked]);
+
+  const loadRelatedArticles = async (articleId: string) => {
+    setRelatedLoading(true);
+    try {
+      const related = await articlesAPI.getRelated(articleId);
+      setRelatedArticles(related || []);
+    } catch (error) {
+      console.error('Failed to load related articles:', error);
+    } finally {
+      setRelatedLoading(false);
+    }
+  };
 
   const loadInteractionStatus = async (articleId: string) => {
     try {
@@ -382,8 +400,8 @@ export default function ArticlePage() {
                   </p>
                 ) : (
                   <p className="text-muted-foreground">
-                    Sarah is a technology journalist specializing in blockchain and decentralized systems. 
-                    She has been covering the intersection of technology and media for over 8 years.
+                    Content creator on this decentralized publishing platform. 
+                    Learn more about our authors and their work by exploring their published articles.
                   </p>
                 )}
               </div>
@@ -391,21 +409,30 @@ export default function ArticlePage() {
           </CardContent>
         </Card>
 
-        {/* Related Articles Placeholder */}
+        {/* Related Articles */}
         <Card>
           <CardContent className="p-6">
             <h4 className="font-semibold text-lg mb-4">More from this topic</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Placeholder for related articles */}
-              <div className="space-y-2">
-                <div className="h-4 bg-muted rounded w-3/4"></div>
-                <div className="h-3 bg-muted rounded w-1/2"></div>
+            {relatedLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2].map((i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="h-4 bg-muted rounded w-3/4"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                ))}
               </div>
-              <div className="space-y-2">
-                <div className="h-4 bg-muted rounded w-3/4"></div>
-                <div className="h-3 bg-muted rounded w-1/2"></div>
+            ) : relatedArticles.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {relatedArticles.slice(0, 4).map((relatedArticle) => (
+                  <ArticleCard key={relatedArticle.id} article={relatedArticle} variant="compact" />
+                ))}
               </div>
-            </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">
+                No related articles found.
+              </p>
+            )}
           </CardContent>
         </Card>
       </footer>
