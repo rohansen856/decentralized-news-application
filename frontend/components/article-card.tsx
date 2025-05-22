@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Heart, Bookmark, Share2, Clock, User, Eye, BarChart } from 'lucide-react';
+import { DonationDialog } from './donation-dialog';
 import { Article, useStore } from '@/lib/store';
 import { interactionsAPI } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
@@ -215,38 +216,55 @@ export function ArticleCard({ article, variant = 'default', className }: Article
           )}
           
           <div className="flex items-center justify-between mt-auto">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={cn("gap-1", bookmarked && "text-primary")}
-              onClick={handleBookmark}
-              disabled={loading || !user}
-            >
-              <Bookmark size={16} className={bookmarked ? "fill-current" : ""} />
-              <span className="sr-only">Bookmark</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={cn("gap-1", liked && "text-red-500")}
-              onClick={handleLike}
-              disabled={loading || !user}
-            >
-              <Heart size={16} className={liked ? "fill-current" : ""} />
-              <span>{stats.likes}</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="gap-1"
-              onClick={handleShare}
-              disabled={loading || !user}
-            >
-              <Share2 size={16} />
-              <span>{stats.shares}</span>
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className={cn("gap-1", bookmarked && "text-primary")}
+                onClick={handleBookmark}
+                disabled={loading || !user}
+              >
+                <Bookmark size={16} className={bookmarked ? "fill-current" : ""} />
+                <span className="sr-only">Bookmark</span>
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className={cn("gap-1", liked && "text-red-500")}
+                onClick={handleLike}
+                disabled={loading || !user}
+              >
+                <Heart size={16} className={liked ? "fill-current" : ""} />
+                <span>{stats.likes}</span>
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="gap-1"
+                onClick={handleShare}
+                disabled={loading || !user}
+              >
+                <Share2 size={16} />
+                <span>{stats.shares}</span>
+              </Button>
+            </div>
+
+            {/* Donation Dialog - only show if user is not the author */}
+            {user && article.author_id && user.id !== article.author_id && variant !== 'compact' && (
+              <div onClick={(e) => e.preventDefault()}>
+                <DonationDialog
+                  articleId={article.id}
+                  articleTitle={article.title}
+                  authorName={article.author}
+                  authorAddress={article.author_wallet_address}
+                  onDonationComplete={(tokenId, transactionHash) => {
+                    console.log('Donation completed:', { tokenId, transactionHash });
+                  }}
+                />
+              </div>
+            )}
           </div>
         </CardContent>
       </div>

@@ -20,7 +20,9 @@ export interface Article {
   content: string;
   excerpt: string;
   author: string;
+  author_id?: string;
   author_anonymous: boolean;
+  author_wallet_address?: string;
   tags: string[];
   published_at: string;
   likes: number;
