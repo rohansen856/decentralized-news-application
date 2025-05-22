@@ -166,14 +166,23 @@ CREATE TABLE IF NOT EXISTS author_payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    donor_id UUID REFERENCES users(id) ON DELETE SET NULL,
     nft_token_id VARCHAR(255) UNIQUE NOT NULL,
     contract_address VARCHAR(255) NOT NULL,
+    donation_manager_address VARCHAR(255),
     amount DECIMAL(20,8) NOT NULL,
+    platform_fee DECIMAL(20,8) DEFAULT 0,
+    net_amount DECIMAL(20,8) NOT NULL,
     currency VARCHAR(10) DEFAULT 'ETH',
     transaction_hash VARCHAR(255) UNIQUE NOT NULL,
     payment_status VARCHAR(20) DEFAULT 'pending',
+    payment_type VARCHAR(20) DEFAULT 'nft_donation',
+    blockchain_network VARCHAR(50) DEFAULT 'ethereum',
+    token_uri TEXT,
+    metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    confirmed_at TIMESTAMP WITH TIME ZONE
+    confirmed_at TIMESTAMP WITH TIME ZONE,
+    processed_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Audit logs
@@ -227,7 +236,12 @@ CREATE INDEX IF NOT EXISTS idx_did_identities_user_id ON did_identities(user_id)
 
 CREATE INDEX IF NOT EXISTS idx_author_payments_author ON author_payments(author_id);
 CREATE INDEX IF NOT EXISTS idx_author_payments_article ON author_payments(article_id);
+CREATE INDEX IF NOT EXISTS idx_author_payments_donor ON author_payments(donor_id);
 CREATE INDEX IF NOT EXISTS idx_author_payments_status ON author_payments(payment_status);
+CREATE INDEX IF NOT EXISTS idx_author_payments_token_id ON author_payments(nft_token_id);
+CREATE INDEX IF NOT EXISTS idx_author_payments_contract ON author_payments(contract_address);
+CREATE INDEX IF NOT EXISTS idx_author_payments_type ON author_payments(payment_type);
+CREATE INDEX IF NOT EXISTS idx_author_payments_network ON author_payments(blockchain_network);
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
