@@ -1,0 +1,43 @@
+{
+  "name": "fusetoken-donation-system",
+  "version": "1.0.0",
+  "description": "Smart contracts for NFT-based author donations using FuseToken (FTK)",
+  "main": "scripts/deploy.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:ganache": "hardhat run scripts/deploy-ganache.js --network ganache",
+    "deploy:testnet": "hardhat run scripts/deploy.js --network sepolia",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network mainnet",
+    "setup:local": "hardhat run scripts/setup.js --network localhost",
+    "setup:ganache": "hardhat run scripts/ganache-setup.js --network ganache",
+    "setup:testnet": "hardhat run scripts/setup.js --network sepolia",
+    "setup:mainnet": "hardhat run scripts/setup.js --network mainnet",
+    "verify": "hardhat verify",
+    "node": "hardhat node",
+    "console": "hardhat console",
+    "flatten": "hardhat flatten",
+    "size": "hardhat size-contracts",
+    "coverage": "hardhat coverage"
+  },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "nft",
+    "donations",
+    "smart-contracts",
+    "solidity"
+  ],
+  "author": "Your Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts": "^4.9.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "ethers": "^6.14.0"
+  }
+}
