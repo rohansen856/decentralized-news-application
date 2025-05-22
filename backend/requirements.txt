@@ -3,6 +3,7 @@
 psycopg2-binary
 pymongo
 redis
+asyncpg
 
 # Web frameworks
 flask

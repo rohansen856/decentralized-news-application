@@ -254,6 +254,121 @@ class PaginatedResponse(BaseResponse):
     has_prev: bool
 
 
+# NFT Donation models
+class PaymentStatus(str, Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class PaymentType(str, Enum):
+    NFT_DONATION = "nft_donation"
+    REGULAR_DONATION = "regular_donation"
+
+
+class BlockchainNetwork(str, Enum):
+    ETHEREUM = "ethereum"
+    POLYGON = "polygon"
+    BSC = "bsc"
+
+
+class DonationRequest(BaseModel):
+    article_id: uuid.UUID
+    amount: float = Field(..., gt=0, description="Donation amount in ETH")
+    message: Optional[str] = Field(None, max_length=500)
+    anonymous: bool = False
+    token_uri: Optional[str] = None
+
+
+class BatchDonationRequest(BaseModel):
+    donations: List[DonationRequest] = Field(..., min_items=1, max_items=10)
+
+
+class AuthorPaymentResponse(BaseModel):
+    id: uuid.UUID
+    author_id: uuid.UUID
+    article_id: uuid.UUID
+    donor_id: Optional[uuid.UUID]
+    nft_token_id: str
+    contract_address: str
+    donation_manager_address: Optional[str]
+    amount: float
+    platform_fee: float
+    net_amount: float
+    currency: str
+    transaction_hash: str
+    payment_status: PaymentStatus
+    payment_type: PaymentType
+    blockchain_network: BlockchainNetwork
+    token_uri: Optional[str]
+    metadata: Dict[str, Any]
+    created_at: datetime
+    confirmed_at: Optional[datetime]
+    processed_at: Optional[datetime]
+
+
+class DonationResponse(BaseResponse):
+    payment: AuthorPaymentResponse
+    token_id: int
+    transaction_hash: str
+
+
+class BatchDonationResponse(BaseResponse):
+    payments: List[AuthorPaymentResponse]
+    total_amount: float
+    total_fees: float
+    failed_donations: List[Dict[str, Any]]
+
+
+class DonationStatsRequest(BaseModel):
+    user_id: Optional[uuid.UUID] = None
+    article_id: Optional[uuid.UUID] = None
+    author_id: Optional[uuid.UUID] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
+
+
+class AuthorStatsResponse(BaseModel):
+    author_id: uuid.UUID
+    total_received: float
+    total_donations: int
+    total_nfts: int
+    average_donation: float
+    top_articles: List[Dict[str, Any]]
+    recent_donations: List[AuthorPaymentResponse]
+
+
+class DonorStatsResponse(BaseModel):
+    donor_id: uuid.UUID
+    total_given: float
+    total_donations: int
+    total_nfts_owned: int
+    favorite_authors: List[Dict[str, Any]]
+    recent_donations: List[AuthorPaymentResponse]
+
+
+class NFTDetailsResponse(BaseModel):
+    token_id: int
+    contract_address: str
+    owner: str
+    donation_amount: float
+    recipient: str
+    article_id: str
+    token_uri: Optional[str]
+    metadata: Dict[str, Any]
+
+
+class VerifyAuthorRequest(BaseModel):
+    author_address: str
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class RegisterArticleRequest(BaseModel):
+    article_id: uuid.UUID
+    author_address: str
+
+
 # Health check model
 class HealthResponse(BaseModel):
     status: str = "healthy"

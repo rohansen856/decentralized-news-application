@@ -122,7 +122,7 @@ def create_app() -> FastAPI:
     
     # Import and include routers
     try:
-        from .routers import auth, users, articles, interactions, recommendations, search, analytics, health
+        from .routers import auth, users, articles, interactions, recommendations, search, analytics, health, donations
         
         app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
         app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
@@ -132,6 +132,7 @@ def create_app() -> FastAPI:
         app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
         app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
         app.include_router(health.router, prefix="/api/v1/health", tags=["Health"])
+        app.include_router(donations.router, prefix="/api/v1/donations", tags=["Donations"])
         
         logger.info("All routers included successfully")
     except ImportError as e:
