@@ -24,6 +24,7 @@ import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArticleCard } from '@/components/article-card';
+import { shareArticle } from '@/lib/share-utils';
 
 export default function ArticlePage() {
   const params = useParams();
@@ -162,27 +163,35 @@ export default function ArticlePage() {
   };
 
   const handleShare = async () => {
-    if (!article || !user || interactionLoading) return;
+    if (!article || interactionLoading) return;
     
     setInteractionLoading(true);
     try {
-      // Use Web Share API if available, otherwise copy to clipboard
-      if (navigator.share) {
-        await navigator.share({
+      const result = await shareArticle(
+        {
+          id: article.id,
           title: article.title,
-          text: article.excerpt,
-          url: window.location.href,
-        });
-        await interactionsAPI.share(article.id, 'native');
-      } else {
-        // Fallback to copying URL to clipboard
-        await navigator.clipboard.writeText(window.location.href);
-        await interactionsAPI.share(article.id, 'clipboard');
+          excerpt: article.excerpt
+        },
+        {
+          userId: user?.id,
+          onSuccess: (method) => {
+            console.log(`Article shared via ${method}`);
+            setStats(prev => ({ ...prev, shares: prev.shares + 1 }));
+          },
+          onError: (error) => {
+            console.error('Failed to share article:', error);
+          }
+        }
+      );
+      
+      // Handle cancelled shares gracefully
+      if (!result.success && result.method === 'cancelled') {
+        console.log('User cancelled share');
       }
       
-      setStats(prev => ({ ...prev, shares: prev.shares + 1 }));
     } catch (error) {
-      console.error('Error sharing article:', error);
+      console.error('Share operation failed:', error);
     } finally {
       setInteractionLoading(false);
     }
@@ -299,7 +308,7 @@ export default function ArticlePage() {
               variant="outline" 
               size="sm" 
               onClick={handleShare}
-              disabled={interactionLoading || !user}
+              disabled={interactionLoading}
             >
               <Share2 className="w-4 h-4" />
             </Button>
@@ -370,7 +379,7 @@ export default function ArticlePage() {
                   variant="outline" 
                   size="sm" 
                   onClick={handleShare}
-                  disabled={interactionLoading || !user}
+                  disabled={interactionLoading}
                 >
                   <Share2 className="w-4 h-4 mr-2" />
                   Share

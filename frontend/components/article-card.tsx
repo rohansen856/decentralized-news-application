@@ -10,6 +10,7 @@ import { interactionsAPI } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { shareArticle } from '@/lib/share-utils';
 
 interface ArticleCardProps {
   article: Article;
@@ -90,30 +91,38 @@ export function ArticleCard({ article, variant = 'default', className }: Article
 
   const handleShare = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!user || loading) return;
+    if (loading) return;
     
     setLoading(true);
     try {
-      // Use Web Share API if available, otherwise copy to clipboard
-      if (navigator.share) {
-        await navigator.share({
+      const result = await shareArticle(
+        {
+          id: article.id,
           title: article.title,
-          text: article.excerpt,
-          url: window.location.origin + `/articles/${article.id}`
-        });
-        await interactionsAPI.share(article.id, 'native');
-      } else {
-        // Fallback to copying URL to clipboard
-        await navigator.clipboard.writeText(window.location.origin + `/articles/${article.id}`);
-        await interactionsAPI.share(article.id, 'clipboard');
+          excerpt: article.excerpt
+        },
+        {
+          userId: user?.id,
+          onSuccess: (method) => {
+            console.log(`Article shared via ${method}`);
+            setStats(prev => ({
+              ...prev,
+              shares: prev.shares + 1
+            }));
+          },
+          onError: (error) => {
+            console.error('Failed to share article:', error);
+          }
+        }
+      );
+      
+      // Handle cancelled shares gracefully
+      if (!result.success && result.method === 'cancelled') {
+        console.log('User cancelled share');
       }
       
-      setStats(prev => ({
-        ...prev,
-        shares: prev.shares + 1
-      }));
     } catch (error) {
-      console.error('Failed to share article:', error);
+      console.error('Share operation failed:', error);
     } finally {
       setLoading(false);
     }
